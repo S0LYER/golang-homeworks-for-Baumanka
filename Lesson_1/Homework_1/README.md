@@ -4,7 +4,9 @@
 git clone https://github.com/S0LYER/golang-homeworks-for-Baumanka
 cd golang-homeworks-for-Baumanka/Lesson_1/Homework_1
 go build
-./hw1
+```
+```
+./hw1 # Лучше вручную, чтобы не багалось
 ```
 
 # Screenshot
