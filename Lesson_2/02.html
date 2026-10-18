@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Занятие 02. ООП в Go: struct, методы, принципы — ДЕЛО</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0c1624;
+      --ink-soft: #1a2a3a;
+      --paper: #f3f0e8;
+      --paper-warm: #ebe6da;
+      --accent: #e85d04;
+      --accent-deep: #c44902;
+      --accent-glow: #ffb068;
+      --teal: #0d6e6e;
+      --muted: #5c6b7a;
+      --line: rgba(12, 22, 36, 0.12);
+      --font-display: "Unbounded", sans-serif;
+      --font-body: "Onest", sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: var(--font-body);
+      color: var(--ink);
+      background: #0b1016;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .deck {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(4.25rem, 9vh, 5.5rem) clamp(1.5rem, 5vw, 4.5rem) clamp(3.5rem, 8vh, 4.75rem);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: opacity 0.35s ease, transform 0.35s ease, visibility 0.35s;
+      overflow: hidden;
+    }
+    .slide.is-on {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+      z-index: 1;
+    }
+
+    .slide--dark { background: #111820; color: var(--paper); }
+    .slide--ink { background: var(--ink); color: var(--paper); }
+    .slide--paper { background: var(--paper); color: var(--ink); }
+    .slide--warm { background: linear-gradient(180deg, var(--paper-warm), var(--paper)); color: var(--ink); }
+    .slide--teal { background: linear-gradient(135deg, #0d3d3d 0%, #0c1624 55%, #1a2433 100%); color: var(--paper); }
+
+    .inner {
+      width: min(1120px, 100%);
+      margin-inline: auto;
+    }
+    .inner--wide { width: min(1240px, 100%); }
+
+    .chrome {
+      position: fixed;
+      z-index: 10;
+      left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.05rem clamp(1.5rem, 5vw, 4.5rem);
+      pointer-events: none;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .chrome--top { top: 0; color: var(--ink); }
+    .chrome--bottom { bottom: 0; padding-bottom: 1.15rem; color: var(--muted); }
+    .brand { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.06em; }
+    .brand .x { color: var(--accent); }
+    .hint { font-weight: 500; letter-spacing: 0.04em; text-transform: none; }
+    body:has(.slide--dark.is-on) .chrome--top,
+    body:has(.slide--ink.is-on) .chrome--top,
+    body:has(.slide--teal.is-on) .chrome--top { color: var(--paper); }
+    body:has(.slide--dark.is-on) .chrome--bottom,
+    body:has(.slide--ink.is-on) .chrome--bottom,
+    body:has(.slide--teal.is-on) .chrome--bottom { color: rgba(243, 240, 232, 0.5); }
+
+    .progress {
+      position: fixed;
+      z-index: 11;
+      left: 0; right: 0; bottom: 0;
+      height: 3px;
+      background: rgba(12, 22, 36, 0.18);
+    }
+    .progress > i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+      transition: width 0.3s ease;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 1rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .pill {
+      color: var(--accent-deep);
+      background: rgba(232, 93, 4, 0.12);
+      padding: 0.28rem 0.6rem;
+      border-radius: 999px;
+    }
+    .slide--dark .kicker,
+    .slide--ink .kicker,
+    .slide--teal .kicker { color: rgba(243, 240, 232, 0.5); }
+    .slide--dark .pill,
+    .slide--ink .pill,
+    .slide--teal .pill {
+      color: var(--accent-glow);
+      background: rgba(232, 93, 4, 0.18);
+    }
+
+    .eyebrow {
+      font-family: var(--font-display);
+      font-size: clamp(1.15rem, 2.6vw, 1.7rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.65rem;
+    }
+    h1, h2 {
+      font-family: var(--font-display);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+    h1 {
+      font-size: clamp(2.4rem, 7vw, 4.8rem);
+      text-transform: uppercase;
+      max-width: 14ch;
+      margin-bottom: 1.1rem;
+    }
+    h2 {
+      font-size: clamp(1.7rem, 4.2vw, 2.85rem);
+      max-width: 22ch;
+      margin-bottom: 0.85rem;
+    }
+    .lead {
+      font-size: clamp(1.05rem, 2vw, 1.28rem);
+      line-height: 1.45;
+      max-width: 38ch;
+      color: var(--muted);
+    }
+    .slide--dark .lead,
+    .slide--ink .lead,
+    .slide--teal .lead { color: rgba(243, 240, 232, 0.68); }
+
+    .agenda {
+      list-style: none;
+      display: grid;
+      gap: 0;
+    }
+    .agenda li {
+      display: grid;
+      grid-template-columns: 3.4rem 1fr;
+      gap: 1.15rem;
+      padding: 0.72rem 0;
+      border-bottom: 1px solid var(--line);
+      align-items: baseline;
+    }
+    .agenda .n {
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 1.05rem;
+    }
+    .agenda .t {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: clamp(1.05rem, 2vw, 1.35rem);
+      letter-spacing: -0.02em;
+    }
+    .agenda .d {
+      display: block;
+      margin-top: 0.25rem;
+      color: var(--muted);
+      font-size: 0.98rem;
+      font-weight: 400;
+    }
+
+    .grid-2, .grid-3, .grid-4 {
+      display: grid;
+      gap: clamp(1rem, 2.5vw, 1.6rem);
+      margin-top: 1.75rem;
+    }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      padding: clamp(1.15rem, 2.2vw, 1.6rem);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.28);
+    }
+    .slide--dark .card,
+    .slide--ink .card,
+    .slide--teal .card {
+      background: rgba(243, 240, 232, 0.04);
+      border-color: rgba(243, 240, 232, 0.12);
+    }
+    .card h3 {
+      font-family: var(--font-display);
+      font-size: clamp(1rem, 1.6vw, 1.18rem);
+      font-weight: 700;
+      margin-bottom: 0.45rem;
+      letter-spacing: -0.02em;
+    }
+    .slide--dark .card h3 { color: var(--accent-glow); }
+    .card p { color: var(--muted); font-size: 0.98rem; line-height: 1.45; }
+    .slide--dark .card p,
+    .slide--ink .card p,
+    .slide--teal .card p { color: rgba(243, 240, 232, 0.68); }
+
+    .path {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.45rem 0.35rem;
+      margin-top: 1.75rem;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+    }
+    .path span {
+      padding: 0.45rem 0.7rem;
+      border: 1px solid rgba(243, 240, 232, 0.16);
+      color: rgba(243, 240, 232, 0.55);
+    }
+    .path .now {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .path .sep { border: 0; padding: 0 0.15rem; color: var(--accent); }
+
+    .code {
+      --win-bar: 1.85rem;
+      position: relative;
+      margin-top: 1.5rem;
+      padding: calc(var(--win-bar) + 0.95rem) 1.35rem 1.1rem;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: clamp(0.92rem, 1.4vw, 1.08rem);
+      line-height: 1.55;
+      color: #e8e4da;
+      overflow: auto;
+      border-radius: 14px;
+      background: #1c1c1e;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.08) inset,
+        0 18px 44px rgba(12, 22, 36, 0.28);
+    }
+    .code::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--win-bar);
+      border-radius: 14px 14px 0 0;
+      background: linear-gradient(180deg, #3a3a3c, #2c2c2e);
+      box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+    }
+    .code::after {
+      content: "";
+      position: absolute;
+      top: calc((var(--win-bar) - 10px) / 2);
+      left: 0.85rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ff5f57;
+      box-shadow:
+        16px 0 0 #febc2e,
+        32px 0 0 #28c840;
+    }
+    .code--sm {
+      --win-bar: 1.55rem;
+      margin-top: 0.85rem;
+      padding: calc(var(--win-bar) + 0.7rem) 0.95rem 0.8rem;
+      font-size: clamp(0.78rem, 1.15vw, 0.9rem);
+      line-height: 1.45;
+      border-radius: 12px;
+    }
+    .code--sm::before { border-radius: 12px 12px 0 0; }
+    .code--sm::after {
+      width: 8px;
+      height: 8px;
+      top: calc((var(--win-bar) - 8px) / 2);
+      left: 0.75rem;
+      box-shadow:
+        13px 0 0 #febc2e,
+        26px 0 0 #28c840;
+    }
+    .card .code { margin-bottom: 0; }
+    .kw { color: #ff9f5a; }
+    .fn { color: #7ecfcf; }
+    .st { color: #c9e39b; }
+    .cm { color: rgba(243, 240, 232, 0.38); }
+    .tp { color: #9ec5ff; }
+    .num { color: #e8c27a; }
+    .card code, .lead code, p code, h3 code {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.92em;
+      color: var(--accent-deep);
+    }
+    .slide--dark .card code,
+    .slide--ink .card code,
+    .slide--teal .card code,
+    .slide--dark .lead code,
+    .slide--ink .lead code,
+    .slide--teal .lead code { color: var(--accent-glow); }
+
+    .dots {
+      list-style: none;
+      display: grid;
+      gap: 0.85rem;
+      margin-top: 1.25rem;
+      max-width: 46rem;
+    }
+    .dots li {
+      position: relative;
+      padding-left: 1.2rem;
+      font-size: 1.12rem;
+      line-height: 1.45;
+      color: var(--ink-soft);
+    }
+    .dots li::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0.58em;
+      width: 0.45rem; height: 0.45rem;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .slide--dark .dots li,
+    .slide--ink .dots li,
+    .slide--teal .dots li { color: rgba(243, 240, 232, 0.78); }
+
+    .practice {
+      margin-top: 1.75rem;
+      padding: 1.35rem 1.5rem;
+      border: 1px solid rgba(243, 240, 232, 0.16);
+      background: rgba(232, 93, 4, 0.12);
+    }
+    .practice .label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent-glow);
+      margin-bottom: 0.45rem;
+    }
+    .practice p { font-size: 1.12rem; line-height: 1.4; max-width: 42ch; }
+
+    .nav-hit {
+      position: fixed;
+      top: 0; bottom: 3px;
+      width: 18%;
+      z-index: 8;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+    }
+    .nav-hit--prev { left: 0; }
+    .nav-hit--next { right: 0; }
+
+    @media (max-width: 860px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .agenda li { grid-template-columns: 2.4rem 1fr; }
+      .chrome .hint { display: none; }
+      h1 { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="chrome chrome--top">
+    <div class="brand">Дело <span class="x">·</span> Backend</div>
+    <div class="meta">Занятие 02 из 09</div>
+  </div>
+  <div class="chrome chrome--bottom">
+    <div class="hint">← → или пробел</div>
+    <div class="counter" id="counter">01 / 17</div>
+  </div>
+  <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+
+  <button class="nav-hit nav-hit--prev" type="button" aria-label="Предыдущий слайд"></button>
+  <button class="nav-hit nav-hit--next" type="button" aria-label="Следующий слайд"></button>
+
+  <main class="deck" id="deck">
+
+    <section class="slide slide--dark is-on">
+      <div class="inner">
+        <div class="kicker"><span class="pill">Backend · Go</span> Занятие 02 из 09</div>
+        <p class="eyebrow">ДЕЛО</p>
+        <h1>ООП в Go</h1>
+        <p class="lead">Struct, методы, принципы. Инкапсуляция, наследование и полиморфизм — как они живут в языке без классических классов.</p>
+      </div>
+    </section>
+
+    <section class="slide slide--ink">
+      <div class="inner">
+        <p class="eyebrow">Откуда пришли</p>
+        <h2>От консоли — к модели</h2>
+        <p class="lead">На прошлом занятии задача жила в слайсе. Сегодня у неё появляется тип, контракт и поведение.</p>
+        <div class="path">
+          <span>Консоль</span><span class="sep">→</span>
+          <span class="now">Типы и ООП</span><span class="sep">→</span>
+          <span>HTTP</span><span class="sep">→</span>
+          <span>API</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--warm">
+      <div class="inner">
+        <p class="eyebrow">План занятия</p>
+        <h2>Что разберём</h2>
+        <ol class="agenda">
+          <li><span class="n">01</span><span><span class="t">ООП в Go</span><span class="d">Зачем оно нужно и чем отличается от классических классов</span></span></li>
+          <li><span class="n">02</span><span><span class="t">Struct и методы</span><span class="d">Тип вместо класса, value / pointer receiver</span></span></li>
+          <li><span class="n">03</span><span><span class="t">Инкапсуляция</span><span class="d">Пакеты, видимость, exported / unexported</span></span></li>
+          <li><span class="n">04</span><span><span class="t">Композиция</span><span class="d">«Наследование» через embedding структур</span></span></li>
+          <li><span class="n">05</span><span><span class="t">Интерфейсы</span><span class="d">Полиморфизм: поведение, а не родословная типов</span></span></li>
+          <li><span class="n">06</span><span><span class="t">Практика</span><span class="d">Расширяем приложение: задачи в папках, смена статуса</span></span></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Язык</p>
+        <h2>Не «как в Java»</h2>
+        <p class="lead">Те же идеи — без иерархии классов. В Go ООП собирается из простых кирпичей.</p>
+        <div class="grid-3">
+          <article class="card">
+            <h3>Нет class</h3>
+            <p>Данные — <code>struct</code>. Поведение — методы на типе. Наследования «extends» нет.</p>
+          </article>
+          <article class="card">
+            <h3>Композиция важнее</h3>
+            <p>Собираем тип из частей, а не растим дерево предков. Меньше магии, больше явного кода.</p>
+          </article>
+          <article class="card">
+            <h3>Интерфейсы маленькие</h3>
+            <p>Описываем, что тип умеет, а не кем он является. Реализация — неявная.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--dark">
+      <div class="inner">
+        <p class="eyebrow">Три принципа</p>
+        <h2>Как они выглядят в Go</h2>
+        <div class="grid-3">
+          <article class="card">
+            <h3>Инкапсуляция</h3>
+            <p>Пакет и регистр имени: <code>Title</code> видно снаружи, <code>title</code> — нет. Контракт вместо «всего наружу».</p>
+          </article>
+          <article class="card">
+            <h3>Наследование</h3>
+            <p>Не иерархия классов, а композиция и embedding: встроили структуру — получили её поля и методы.</p>
+          </article>
+          <article class="card">
+            <h3>Полиморфизм</h3>
+            <p>Интерфейс фиксирует поведение. Любой тип с нужными методами подходит — без implements.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Кирпич</p>
+        <h2>Struct — данные типа</h2>
+        <p class="lead">Структура собирает поля в одно значение. Это не класс: пока нет методов — это просто запись.</p>
+        <pre class="code"><span class="kw">type</span> <span class="tp">Task</span> <span class="kw">struct</span> {
+    Title <span class="tp">string</span>
+    Done  <span class="tp">bool</span>
+}
+
+t := Task{Title: <span class="st">"разобрать ООП"</span>}  <span class="cm">// Done == false — нулевое значение</span></pre>
+      </div>
+    </section>
+
+    <section class="slide slide--warm">
+      <div class="inner">
+        <p class="eyebrow">Поведение</p>
+        <h2>Методы: value и pointer</h2>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Value receiver</h3>
+            <p><code>func (t Task)</code> — копия. Читать удобно. Менять поля бессмысленно: оригинал не увидит.</p>
+          </article>
+          <article class="card">
+            <h3>Pointer receiver</h3>
+            <p><code>func (t *Task)</code> — работаем с тем же значением. Нужен, когда метод меняет состояние.</p>
+          </article>
+        </div>
+        <pre class="code code--sm"><span class="kw">func</span> (t <span class="tp">Task</span>) <span class="fn">Label</span>() <span class="tp">string</span> {  <span class="cm">// копия: только читаем</span>
+    <span class="kw">return</span> t.Title
+}
+
+<span class="kw">func</span> (t *<span class="tp">Task</span>) <span class="fn">Complete</span>() {   <span class="cm">// указатель: меняем Done</span>
+    t.Done = <span class="kw">true</span>
+}</pre>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Инкапсуляция</p>
+        <h2>Пакет решает, что видно</h2>
+        <p class="lead">Видимость в Go — не private внутри типа, а граница пакета. Заглавная буква = экспорт.</p>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Exported</h3>
+            <p><code>Task</code>, <code>New</code>, <code>Title()</code> — можно вызывать из другого пакета. Это публичный контракт.</p>
+          </article>
+          <article class="card">
+            <h3>Unexported</h3>
+            <p><code>title</code>, <code>done</code>, <code>validate()</code> — только внутри пакета. Прячем внутренности, оставляем методы.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--ink">
+      <div class="inner">
+        <p class="eyebrow">Контракт</p>
+        <h2>Поля прячем, методы оставляем</h2>
+        <pre class="code"><span class="kw">package</span> task
+
+<span class="kw">type</span> <span class="tp">Task</span> <span class="kw">struct</span> {
+    title <span class="tp">string</span>  <span class="cm">// снаружи не достучаться</span>
+    done  <span class="tp">bool</span>
+}
+
+<span class="kw">func</span> <span class="fn">New</span>(title <span class="tp">string</span>) (*<span class="tp">Task</span>, <span class="tp">error</span>) {
+    <span class="kw">if</span> title == <span class="st">""</span> {
+        <span class="kw">return</span> <span class="kw">nil</span>, <span class="fn">errors.New</span>(<span class="st">"пустой заголовок"</span>)
+    }
+    <span class="kw">return</span> &amp;Task{title: title}, <span class="kw">nil</span>
+}</pre>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Наследование</p>
+        <h2>Композиция вместо иерархии</h2>
+        <p class="lead">Не «Task is-a Entity», а «Task has timestamps». Собираем поведение из частей.</p>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Вложение поля</h3>
+            <p>Явно: <code>Meta Meta</code>. Обращение через имя: <code>t.Meta.CreatedAt</code>. Всё видно.</p>
+          </article>
+          <article class="card">
+            <h3>Embedding</h3>
+            <p>Безымянное поле: методы и поля «всплывают» на внешний тип. Это и есть go-шное «наследование».</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--warm">
+      <div class="inner">
+        <p class="eyebrow">Embedding</p>
+        <h2>Встроили — получили методы</h2>
+        <pre class="code"><span class="kw">type</span> <span class="tp">Timestamps</span> <span class="kw">struct</span> {
+    CreatedAt <span class="tp">time.Time</span>
+}
+
+<span class="kw">func</span> (ts *<span class="tp">Timestamps</span>) <span class="fn">TouchCreated</span>() {
+    ts.CreatedAt = <span class="fn">time.Now</span>()
+}
+
+<span class="kw">type</span> <span class="tp">Task</span> <span class="kw">struct</span> {
+    Timestamps        <span class="cm">// embedding: без имени поля</span>
+    title      <span class="tp">string</span>
+}
+
+t.TouchCreated()      <span class="cm">// метод Timestamps доступен на Task</span>
+t.CreatedAt           <span class="cm">// поле тоже «всплыло»</span></pre>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Полиморфизм</p>
+        <h2>Интерфейс описывает умение</h2>
+        <p class="lead">Не родословная типов, а набор методов. Реализация неявная: есть методы — тип подходит.</p>
+        <div class="grid-3">
+          <article class="card">
+            <h3>Маленький контракт</h3>
+            <p>Один-два метода лучше «богатого» интерфейса. Проще подставить другой тип.</p>
+          </article>
+          <article class="card">
+            <h3>Нет implements</h3>
+            <p>Не пишем «я реализую». Компилятор сам проверяет, совпадают ли сигнатуры.</p>
+          </article>
+          <article class="card">
+            <h3>Где уместно</h3>
+            <p>Там, где поведение общее: «можно завершить», «можно сохранить». Не на каждый struct.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--ink">
+      <div class="inner">
+        <p class="eyebrow">Поведение</p>
+        <h2>Один интерфейс — разные типы</h2>
+        <pre class="code"><span class="kw">type</span> <span class="tp">Completer</span> <span class="kw">interface</span> {
+    Complete() <span class="tp">error</span>
+}
+
+<span class="kw">func</span> <span class="fn">MarkDone</span>(c <span class="tp">Completer</span>) <span class="tp">error</span> {
+    <span class="kw">return</span> c.Complete()
+}
+
+<span class="cm">// Task и любой другой тип с Complete() — подходят</span>
+<span class="kw">var</span> _ Completer = (*Task)(<span class="kw">nil</span>)  <span class="cm">// проверка на этапе компиляции</span></pre>
+      </div>
+    </section>
+
+    <section class="slide slide--warm">
+      <div class="inner">
+        <p class="eyebrow">Ошибки</p>
+        <h2>error как значение и defer</h2>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Ошибка — не исключение</h3>
+            <p>Метод возвращает <code>error</code>. Вызывающий решает: показать, обернуть, остановиться. <code>nil</code> — всё хорошо.</p>
+          </article>
+          <article class="card">
+            <h3>defer</h3>
+            <p>Отложенный вызов: закроется файл, снимется блокировка — даже если вышли по ошибке. Пока без паники.</p>
+          </article>
+        </div>
+        <pre class="code code--sm"><span class="kw">func</span> (t *<span class="tp">Task</span>) <span class="fn">Complete</span>() <span class="tp">error</span> {
+    <span class="kw">if</span> t.done {
+        <span class="kw">return</span> <span class="fn">errors.New</span>(<span class="st">"уже выполнена"</span>)
+    }
+    t.done = <span class="kw">true</span>
+    <span class="kw">return</span> <span class="kw">nil</span>
+}</pre>
+      </div>
+    </section>
+
+    <section class="slide slide--teal">
+      <div class="inner">
+        <p class="eyebrow">Практика</p>
+        <h2>Задачи в папках</h2>
+        <p class="lead">Берём консольное приложение с первого занятия и дописываем домен: не пустые папки, а задачи внутри.</p>
+        <div class="practice">
+          <div class="label">К концу занятия</div>
+          <p>Создание задачи в папке, список, смена статуса — через struct и методы, а не через набор строк в слайсе.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Что пишем</p>
+        <h2>Расширяем приложение</h2>
+        <ul class="dots">
+          <li>Папки из домашки остаются: внутри больше не «задач пока нет».</li>
+          <li>Создать задачу в текущей папке, показать список, сменить статус.</li>
+          <li>Task — struct с методами, не свободные строки. Статус меняем методом с pointer receiver.</li>
+          <li>Ошибки: пустой заголовок, папки нет, задачу уже закрыли — <code>error</code>, не паника.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide slide--ink">
+      <div class="inner">
+        <p class="eyebrow">Итог</p>
+        <h2>Уносим с занятия</h2>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Сегодня</h3>
+            <p>ООП без классов — и менеджер из занятия 01, в котором в папках уже живут задачи со статусом.</p>
+          </article>
+          <article class="card">
+            <h3>Занятие 03</h3>
+            <p>ТЗ своего проекта, Docker и первый HTTP-сервер с моковыми ручками.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const slides = [...document.querySelectorAll(".slide")];
+    const bar = document.getElementById("bar");
+    const counter = document.getElementById("counter");
+    const total = slides.length;
+    let i = 0;
+
+    function pad(n) { return String(n).padStart(2, "0"); }
+
+    function go(n) {
+      i = Math.max(0, Math.min(total - 1, n));
+      slides.forEach((s, k) => s.classList.toggle("is-on", k === i));
+      bar.style.width = ((i + 1) / total * 100) + "%";
+      counter.textContent = pad(i + 1) + " / " + pad(total);
+      history.replaceState(null, "", "#" + (i + 1));
+    }
+
+    function fromHash() {
+      const n = parseInt(location.hash.replace("#", ""), 10);
+      if (Number.isFinite(n)) go(n - 1);
+      else go(0);
+    }
+
+    document.querySelector(".nav-hit--prev").addEventListener("click", () => go(i - 1));
+    document.querySelector(".nav-hit--next").addEventListener("click", () => go(i + 1));
+
+    document.addEventListener("keydown", (e) => {
+      if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) {
+        e.preventDefault();
+        go(i + 1);
+      } else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) {
+        e.preventDefault();
+        go(i - 1);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        go(0);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        go(total - 1);
+      } else if (e.key === "f" || e.key === "F") {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+      }
+    });
+
+    let touchX = null;
+    document.addEventListener("touchstart", (e) => { touchX = e.changedTouches[0].screenX; }, { passive: true });
+    document.addEventListener("touchend", (e) => {
+      if (touchX == null) return;
+      const dx = e.changedTouches[0].screenX - touchX;
+      if (Math.abs(dx) > 50) go(dx < 0 ? i + 1 : i - 1);
+      touchX = null;
+    }, { passive: true });
+
+    window.addEventListener("hashchange", fromHash);
+    fromHash();
+  </script>
+</body>
+</html>

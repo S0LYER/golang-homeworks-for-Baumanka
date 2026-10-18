@@ -1,2 +1,8 @@
-# golang-homeworks-for-Baumanka
-Some homeworks for golang cources in MGTU Baumana
+# Homeworks for GoLang cources
+
+---
+
+> [!IMPORTANT]
+> Все домашние работы находятся в соответствующиx папках с занятиями
+
+---

@@ -1,0 +1,1023 @@
+2<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Занятие 01. Введение в Go — ДЕЛО</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0c1624;
+      --ink-soft: #1a2a3a;
+      --paper: #f3f0e8;
+      --paper-warm: #ebe6da;
+      --accent: #e85d04;
+      --accent-deep: #c44902;
+      --accent-glow: #ffb068;
+      --teal: #0d6e6e;
+      --muted: #5c6b7a;
+      --line: rgba(12, 22, 36, 0.12);
+      --font-display: "Unbounded", sans-serif;
+      --font-body: "Onest", sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: var(--font-body);
+      color: var(--ink);
+      background: #0b1016;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .deck {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(4.25rem, 9vh, 5.5rem) clamp(1.5rem, 5vw, 4.5rem) clamp(3.5rem, 8vh, 4.75rem);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: opacity 0.35s ease, transform 0.35s ease, visibility 0.35s;
+      overflow: hidden;
+    }
+    .slide.is-on {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+      z-index: 1;
+    }
+
+    .slide--dark { background: #111820; color: var(--paper); }
+    .slide--ink { background: var(--ink); color: var(--paper); }
+    .slide--paper { background: var(--paper); color: var(--ink); }
+    .slide--warm { background: linear-gradient(180deg, var(--paper-warm), var(--paper)); color: var(--ink); }
+    .slide--teal { background: linear-gradient(135deg, #0d3d3d 0%, #0c1624 55%, #1a2433 100%); color: var(--paper); }
+
+    .inner {
+      width: min(1120px, 100%);
+      margin-inline: auto;
+    }
+    .inner--wide { width: min(1240px, 100%); }
+
+    .chrome {
+      position: fixed;
+      z-index: 10;
+      left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.05rem clamp(1.5rem, 5vw, 4.5rem);
+      pointer-events: none;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .chrome--top { top: 0; color: var(--ink); }
+    .chrome--bottom { bottom: 0; padding-bottom: 1.15rem; color: var(--muted); }
+    .brand { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.06em; }
+    .brand .x { color: var(--accent); }
+    .hint { font-weight: 500; letter-spacing: 0.04em; text-transform: none; }
+    body:has(.slide--dark.is-on) .chrome--top,
+    body:has(.slide--ink.is-on) .chrome--top,
+    body:has(.slide--teal.is-on) .chrome--top { color: var(--paper); }
+    body:has(.slide--dark.is-on) .chrome--bottom,
+    body:has(.slide--ink.is-on) .chrome--bottom,
+    body:has(.slide--teal.is-on) .chrome--bottom { color: rgba(243, 240, 232, 0.5); }
+
+    .progress {
+      position: fixed;
+      z-index: 11;
+      left: 0; right: 0; bottom: 0;
+      height: 3px;
+      background: rgba(12, 22, 36, 0.18);
+    }
+    .progress > i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+      transition: width 0.3s ease;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 1rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .pill {
+      color: var(--accent-deep);
+      background: rgba(232, 93, 4, 0.12);
+      padding: 0.28rem 0.6rem;
+      border-radius: 999px;
+    }
+    .slide--dark .kicker,
+    .slide--ink .kicker,
+    .slide--teal .kicker { color: rgba(243, 240, 232, 0.5); }
+    .slide--dark .pill,
+    .slide--ink .pill,
+    .slide--teal .pill {
+      color: var(--accent-glow);
+      background: rgba(232, 93, 4, 0.18);
+    }
+
+    .eyebrow {
+      font-family: var(--font-display);
+      font-size: clamp(1.15rem, 2.6vw, 1.7rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.65rem;
+    }
+    h1, h2 {
+      font-family: var(--font-display);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+    h1 {
+      font-size: clamp(2.4rem, 7vw, 4.8rem);
+      text-transform: uppercase;
+      max-width: 14ch;
+      margin-bottom: 1.1rem;
+    }
+    h2 {
+      font-size: clamp(1.7rem, 4.2vw, 2.85rem);
+      max-width: 22ch;
+      margin-bottom: 0.85rem;
+    }
+    .lead {
+      font-size: clamp(1.05rem, 2vw, 1.28rem);
+      line-height: 1.45;
+      max-width: 38ch;
+      color: var(--muted);
+    }
+    .slide--dark .lead,
+    .slide--ink .lead,
+    .slide--teal .lead { color: rgba(243, 240, 232, 0.68); }
+
+    .agenda {
+      list-style: none;
+      display: grid;
+      gap: 0;
+    }
+    .agenda li {
+      display: grid;
+      grid-template-columns: 3.4rem 1fr;
+      gap: 1.15rem;
+      padding: 0.72rem 0;
+      border-bottom: 1px solid var(--line);
+      align-items: baseline;
+    }
+    .agenda .n {
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 1.05rem;
+    }
+    .agenda .t {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: clamp(1.05rem, 2vw, 1.35rem);
+      letter-spacing: -0.02em;
+    }
+    .agenda .d {
+      display: block;
+      margin-top: 0.25rem;
+      color: var(--muted);
+      font-size: 0.98rem;
+      font-weight: 400;
+    }
+
+    .grid-2, .grid-3, .grid-4 {
+      display: grid;
+      gap: clamp(1rem, 2.5vw, 1.6rem);
+      margin-top: 1.75rem;
+    }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      padding: clamp(1.15rem, 2.2vw, 1.6rem);
+      border: 1px solid rgba(12, 22, 36, 0.08);
+      background: rgba(255, 255, 255, 0.55);
+      border-radius: 1.35rem;
+      box-shadow: 0 12px 32px rgba(12, 22, 36, 0.06);
+    }
+    .slide--dark .card,
+    .slide--ink .card,
+    .slide--teal .card {
+      background: rgba(243, 240, 232, 0.06);
+      border-color: rgba(243, 240, 232, 0.12);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+    }
+    .card h3 {
+      font-family: var(--font-display);
+      font-size: clamp(1rem, 1.6vw, 1.18rem);
+      font-weight: 700;
+      margin-bottom: 0.45rem;
+      letter-spacing: -0.02em;
+    }
+    .slide--dark .card h3 { color: var(--accent-glow); }
+    .card p { color: var(--muted); font-size: 0.98rem; line-height: 1.45; }
+    .slide--dark .card p,
+    .slide--ink .card p,
+    .slide--teal .card p { color: rgba(243, 240, 232, 0.68); }
+
+    .path {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.45rem 0.35rem;
+      margin-top: 1.75rem;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+    }
+    .path span {
+      padding: 0.45rem 0.7rem;
+      border: 1px solid rgba(243, 240, 232, 0.16);
+      color: rgba(243, 240, 232, 0.55);
+    }
+    .path .now {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .path .sep { border: 0; padding: 0 0.15rem; color: var(--accent); }
+
+    .code {
+      --win-bar: 1.85rem;
+      position: relative;
+      margin-top: 1.5rem;
+      padding: calc(var(--win-bar) + 0.95rem) 1.35rem 1.1rem;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: clamp(0.92rem, 1.4vw, 1.08rem);
+      line-height: 1.55;
+      color: #e8e4da;
+      overflow: auto;
+      border-radius: 14px;
+      background: #1c1c1e;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.08) inset,
+        0 18px 44px rgba(12, 22, 36, 0.28);
+    }
+    .code::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--win-bar);
+      border-radius: 14px 14px 0 0;
+      background: linear-gradient(180deg, #3a3a3c, #2c2c2e);
+      box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+    }
+    .code::after {
+      content: "";
+      position: absolute;
+      top: calc((var(--win-bar) - 10px) / 2);
+      left: 0.85rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ff5f57;
+      box-shadow:
+        16px 0 0 #febc2e,
+        32px 0 0 #28c840;
+    }
+    .code--sm {
+      --win-bar: 1.55rem;
+      margin-top: 0.85rem;
+      padding: calc(var(--win-bar) + 0.7rem) 0.95rem 0.8rem;
+      font-size: clamp(0.78rem, 1.15vw, 0.9rem);
+      line-height: 1.45;
+      border-radius: 12px;
+    }
+    .code--sm::before { border-radius: 12px 12px 0 0; }
+    .code--sm::after {
+      width: 8px;
+      height: 8px;
+      top: calc((var(--win-bar) - 8px) / 2);
+      left: 0.75rem;
+      box-shadow:
+        13px 0 0 #febc2e,
+        26px 0 0 #28c840;
+    }
+    .card .code { margin-bottom: 0; }
+    .fact {
+      margin-top: 1.15rem;
+      padding: 0.95rem 1.15rem;
+      border-left: 3px solid var(--accent);
+      background: rgba(232, 93, 4, 0.08);
+      border-radius: 0 1rem 1rem 0;
+    }
+    .fact .label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent-deep);
+      margin-bottom: 0.35rem;
+    }
+    .fact p {
+      font-size: 1.02rem;
+      line-height: 1.4;
+      color: var(--ink-soft);
+      max-width: 54ch;
+    }
+    .grid-2--tight {
+      margin-top: 1.15rem;
+      gap: 0.9rem;
+    }
+    .sig {
+      display: grid;
+      grid-template-columns: auto 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+    .sig-part {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      padding: 0.75rem 0.9rem 0.85rem;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.28);
+      min-width: 0;
+      border-radius: 1rem;
+    }
+    .sig-part--in { border-color: rgba(13, 110, 110, 0.35); }
+    .sig-part--out { border-color: rgba(232, 93, 4, 0.35); }
+    .sig-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .sig-part--in .sig-label { color: var(--teal); }
+    .sig-part--out .sig-label { color: var(--accent-deep); }
+    .sig-code {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.3;
+    }
+    .kw { color: #ff9f5a; }
+    .fn { color: #7ecfcf; }
+    .st { color: #c9e39b; }
+    .cm { color: rgba(243, 240, 232, 0.38); }
+    .tp { color: #9ec5ff; }
+    .num { color: #e8c27a; }
+    .card code, .lead code, p code, h3 code {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.92em;
+      color: var(--accent-deep);
+    }
+    .slide--dark .card code,
+    .slide--ink .card code,
+    .slide--teal .card code,
+    .slide--dark .lead code,
+    .slide--ink .lead code,
+    .slide--teal .lead code { color: var(--accent-glow); }
+
+    .dots {
+      list-style: none;
+      display: grid;
+      gap: 0.85rem;
+      margin-top: 1.25rem;
+      max-width: 46rem;
+    }
+    .dots li {
+      position: relative;
+      padding-left: 1.2rem;
+      font-size: 1.12rem;
+      line-height: 1.45;
+      color: var(--ink-soft);
+    }
+    .dots li::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0.58em;
+      width: 0.45rem; height: 0.45rem;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .slide--dark .dots li,
+    .slide--ink .dots li,
+    .slide--teal .dots li { color: rgba(243, 240, 232, 0.78); }
+
+    .practice {
+      margin-top: 1.75rem;
+      padding: 1.35rem 1.5rem;
+      border: 1px solid rgba(243, 240, 232, 0.16);
+      background: rgba(232, 93, 4, 0.12);
+      border-radius: 1.15rem;
+    }
+    .practice .label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent-glow);
+      margin-bottom: 0.45rem;
+    }
+    .practice p { font-size: 1.12rem; line-height: 1.4; max-width: 42ch; }
+
+    .nav-hit {
+      position: fixed;
+      top: 0; bottom: 3px;
+      width: 18%;
+      z-index: 8;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+    }
+    .nav-hit--prev { left: 0; }
+    .nav-hit--next { right: 0; }
+
+    @media (max-width: 860px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .agenda li { grid-template-columns: 2.4rem 1fr; }
+      .chrome .hint { display: none; }
+      h1 { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="chrome chrome--top">
+    <div class="brand">Дело <span class="x">·</span> Backend</div>
+    <div class="meta">Занятие 01 из 09</div>
+  </div>
+  <div class="chrome chrome--bottom">
+    <div class="hint">← → или пробел</div>
+    <div class="counter" id="counter">01 / 22</div>
+  </div>
+  <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+
+  <button class="nav-hit nav-hit--prev" type="button" aria-label="Предыдущий слайд"></button>
+  <button class="nav-hit nav-hit--next" type="button" aria-label="Следующий слайд"></button>
+
+  <main class="deck" id="deck">
+
+    <section class="slide slide--dark is-on">
+      <div class="inner">
+        <div class="kicker"><span class="pill">Backend · Go</span> Занятие 01 из 09</div>
+        <p class="eyebrow">ДЕЛО</p>
+        <h1>Введение в Go</h1>
+        <p class="lead">Знакомимся с языком и сразу пишем рабочий код: от установки окружения до первой консольной программы — основы будущего API.</p>
+      </div>
+    </section>
+
+    <section class="slide slide--ink">
+      <div class="inner">
+        <p class="eyebrow">Куда идём</p>
+        <h2>Свой проект — не учебная задача</h2>
+        <p class="lead">Курс ведёт к рабочему продукту: разбиваемся на команды и делаем то, что можно показать.</p>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Своя идея</h3>
+            <p>Приносите концепт — от наброска до рабочего сервиса проходим вместе.</p>
+          </article>
+          <article class="card">
+            <h3>Предложенные проекты</h3>
+            <p>Или выбираете из перспективных тем: задачи университета, социальные и индустриальные кейсы.</p>
+          </article>
+        </div>
+        <div class="path">
+          <span class="now">Команда</span><span class="sep">→</span>
+          <span>Идея</span><span class="sep">→</span>
+          <span>Разработка</span><span class="sep">→</span>
+          <span>Demo Day</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--warm">
+      <div class="inner">
+        <p class="eyebrow">План занятия</p>
+        <h2>Что разберём</h2>
+        <ol class="agenda">
+          <li><span class="n">01</span><span><span class="t">Что такое Go</span><span class="d">Язык, философия и где его применяют в продуктах</span></span></li>
+          <li><span class="n">02</span><span><span class="t">Окружение</span><span class="d">Установка, go run / go build, модули go mod</span></span></li>
+          <li><span class="n">03</span><span><span class="t">Переменные</span><span class="d">Объявление, определение, инициализация, var и :=</span></span></li>
+          <li><span class="n">04</span><span><span class="t">Типы</span><span class="d">Простые, затем массивы, слайсы, строки и map</span></span></li>
+          <li><span class="n">05</span><span><span class="t">Управление и функции</span><span class="d">if/else, switch, циклы, возврат значений и ошибки</span></span></li>
+          <li><span class="n">06</span><span><span class="t">Домашка</span><span class="d">Навигация по папкам в терминале — каркас под будущие задачи</span></span></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Язык</p>
+        <h2>Что такое Go</h2>
+        <div class="grid-3">
+          <article class="card">
+            <h3>Простота как фича</h3>
+            <p>Маленький язык: мало ключевых слов, один способ писать циклы, читаемый код без «магии».</p>
+          </article>
+          <article class="card">
+            <h3>Компилируемый</h3>
+            <p>Статическая типизация, быстрая сборка в один бинарник. Пишешь — собираешь — запускаешь.</p>
+          </article>
+          <article class="card">
+            <h3>Для сервисов</h3>
+            <p>Родился в Google под сеть и инфраструктуру. Конкурентность и стандартная библиотека — из коробки.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--dark">
+      <div class="inner">
+        <p class="eyebrow">Где живёт</p>
+        <h2>Go в реальных продуктах</h2>
+        <p class="lead">Backend, CLI и инфраструктура — не «учебный» язык, а рабочий инструмент больших систем.</p>
+        <div class="grid-4">
+          <article class="card"><h3>Docker</h3><p>Контейнеры</p></article>
+          <article class="card"><h3>Kubernetes</h3><p>Оркестрация</p></article>
+          <article class="card"><h3>Terraform</h3><p>Инфраструктура</p></article>
+          <article class="card"><h3>Prometheus</h3><p>Наблюдаемость</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--warm">
+      <div class="inner">
+        <p class="eyebrow">Зачем нам</p>
+        <h2>Почему Go на backend-треке</h2>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Скорость сборки</h3>
+            <p>Короткий цикл обратной связи: изменил файл — сразу увидел результат. Удобно учиться и отлаживать.</p>
+          </article>
+          <article class="card">
+            <h3>Конкурентность</h3>
+            <p>Goroutines и каналы — позже в курсе. Сегодня важно: язык заточен под параллельную работу сервиса.</p>
+          </article>
+          <article class="card">
+            <h3>Стандартная библиотека</h3>
+            <p>HTTP, JSON, тестирование — без зоопарка зависимостей на старте. Меньше шума, больше сути.</p>
+          </article>
+          <article class="card">
+            <h3>Один стиль</h3>
+            <p>gofmt, понятные пакеты, явные ошибки. Код курса и код индустрии читаются похоже.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Окружение</p>
+        <h2>Toolchain: три команды</h2>
+        <p class="lead">Привыкаем к циклу «пишешь — собираешь — запускаешь». Модуль — паспорт проекта.</p>
+        <div class="grid-3">
+          <article class="card">
+            <h3>go run</h3>
+            <p>Собрать и сразу выполнить. Для черновиков и проверки идеи.</p>
+          </article>
+          <article class="card">
+            <h3>go build</h3>
+            <p>Получить бинарник. То, что потом положим в Docker.</p>
+          </article>
+          <article class="card">
+            <h3>go mod</h3>
+            <p>Имя модуля, зависимости, воспроизводимая сборка.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--ink">
+      <div class="inner">
+        <p class="eyebrow">Первый код</p>
+        <h2>Минимальная программа</h2>
+        <pre class="code"><span class="kw">package</span> main
+
+<span class="kw">import</span> <span class="st">"fmt"</span>
+
+<span class="kw">func</span> <span class="fn">main</span>() {
+    name := <span class="st">"ДЕЛО"</span> <span class="cm">// короткая декларация</span>
+    <span class="fn">fmt.Println</span>(<span class="st">"привет,"</span>, name)
+}</pre>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Переменные</p>
+        <h2>Создание: объявление, определение, инициализация</h2>
+        <div class="grid-3">
+          <article class="card">
+            <h3>Объявление</h3>
+            <p>Имя и тип: «есть переменная title типа string». Компилятор знает, чем можно пользоваться.</p>
+          </article>
+          <article class="card">
+            <h3>Определение</h3>
+            <p>Под имя выделяется память. В Go <code>var</code> сразу определяет: без значения получите нулевое — 0, "", false.</p>
+          </article>
+          <article class="card">
+            <h3>Инициализация</h3>
+            <p>Первое значение. Можно в том же <code>var</code> или коротко через <code>:=</code>.</p>
+          </article>
+        </div>
+        <pre class="code"><span class="kw">var</span> title <span class="tp">string</span>            <span class="cm">// объявили и определили: title == ""</span>
+<span class="kw">var</span> done <span class="tp">bool</span> = <span class="kw">false</span>       <span class="cm">// объявили, определили, инициализировали</span>
+count := <span class="num">0</span>                  <span class="cm">// := только внутри функции, тип выводится</span></pre>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Типы</p>
+        <h2>Простые типы</h2>
+        <p class="lead">Тип фиксирован. Неявного приведения нет: int и int32 — разные типы.</p>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Целые со знаком</h3>
+            <p><code>int</code> — «родной» размер платформы (обычно 64 бита). Дальше явно: <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>.</p>
+          </article>
+          <article class="card">
+            <h3>Беззнаковые</h3>
+            <p><code>uint</code>, <code>uint8</code> … <code>uint64</code>. <code>byte</code> — это псевдоним <code>uint8</code>. Для счётчиков и сырых байт.</p>
+          </article>
+          <article class="card">
+            <h3>Дробные</h3>
+            <p><code>float32</code> и <code>float64</code>. В обычном коде берите <code>float64</code> — это тип по умолчанию для литералов вроде <code>3.14</code>.</p>
+          </article>
+          <article class="card">
+            <h3>bool</h3>
+            <p>Только <code>true</code> и <code>false</code>. Нулевое значение — <code>false</code>. Число в условие не подставишь: это не C.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--warm">
+      <div class="inner">
+        <p class="eyebrow">Типы</p>
+        <h2>Более сложные типы</h2>
+        <p class="lead">Собираются из простых: список, текст или словарь «ключ → значение».</p>
+        <div class="grid-2 grid-2--tight">
+          <article class="card">
+            <h3>Массив <code>[n]T</code></h3>
+            <p>Длина — часть типа: <code>[3]int</code> и <code>[4]int</code> разные. Значение копируется. Сам по себе нужен редко.</p>
+          </article>
+          <article class="card">
+            <h3>Слайс <code>[]T</code></h3>
+            <p>Окно на массив: длина и ёмкость. Растёт через <code>append</code>. Рабочая коллекция в Go — почти всегда слайс.</p>
+          </article>
+          <article class="card">
+            <h3>Строка</h3>
+            <p>Неизменяемая последовательность байт в UTF-8. <code>len(s)</code> — байты, не руны. Склеивание даёт новую строку.</p>
+          </article>
+          <article class="card">
+            <h3>map <code>[K]V</code></h3>
+            <p>Словарь: ключ → значение. Писать в <code>nil</code> map нельзя — сначала <code>make</code> или литерал. Порядок ключей не гарантирован.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Типы · массив</p>
+        <h2>Длина — часть типа</h2>
+        <p class="lead"><code>[3]int</code> и <code>[4]int</code> — разные типы. Присваивание копирует все элементы.</p>
+        <pre class="code code--sm">a := [<span class="num">3</span>]<span class="tp">int</span>{<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>}
+b := a          <span class="cm">// копия, не ссылка</span>
+a[<span class="num">0</span>] = <span class="num">9</span>
+<span class="fn">fmt.Println</span>(b[<span class="num">0</span>])  <span class="cm">// 1 — b не изменился</span></pre>
+        <div class="fact">
+          <div class="label">Интересно</div>
+          <p>Массив — значение. Передача в функцию тоже копирует. Поэтому в коде почти всегда слайс: дешёвый заголовок, а не все элементы.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--warm">
+      <div class="inner">
+        <p class="eyebrow">Типы · слайс</p>
+        <h2>Окно на массив</h2>
+        <p class="lead">У слайса три поля: указатель, длина, ёмкость. <code>append</code> дописывает в хвост — или выделяет новый массив.</p>
+        <pre class="code code--sm">s := []<span class="tp">int</span>{<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>}
+<span class="fn">fmt.Println</span>(<span class="fn">len</span>(s), <span class="fn">cap</span>(s))  <span class="cm">// 4 4</span>
+t := s[<span class="num">1</span>:<span class="num">3</span>]                  <span class="cm">// 2, 3 — общее хранилище</span>
+<span class="fn">fmt.Println</span>(<span class="fn">len</span>(t), <span class="fn">cap</span>(t))  <span class="cm">// 2 3</span>
+t[<span class="num">0</span>] = <span class="num">99</span>
+<span class="fn">fmt.Println</span>(s)               <span class="cm">// [1 99 3 4]</span>
+s = <span class="fn">append</span>(s, <span class="num">5</span>)
+<span class="fn">fmt.Println</span>(<span class="fn">len</span>(s), <span class="fn">cap</span>(s))  <span class="cm">// 5 8</span></pre>
+        <div class="fact">
+          <div class="label">Интересно</div>
+          <p>Два слайса могут смотреть в один массив: правка одного меняет другой. Если <code>append</code> не влезает в ёмкость — память новая, связь рвётся.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Типы · строка</p>
+        <h2>Байты и руны</h2>
+        <p class="lead">Строка неизменяема. Под капотом — UTF-8. Один и тот же текст по-разному выглядит, если идти байтами или буквами.</p>
+        <div class="grid-2 grid-2--tight">
+          <article class="card">
+            <h3>Байты</h3>
+            <p><code>len</code> и <code>s[i]</code> работают с сырыми байтами. Для кириллицы буква — не один индекс.</p>
+            <pre class="code code--sm">s := <span class="st">"привет"</span>
+<span class="fn">fmt.Println</span>(<span class="fn">len</span>(s))      <span class="cm">// 12, не 6</span>
+<span class="fn">fmt.Println</span>(s[<span class="num">0</span>], s[<span class="num">1</span>])  <span class="cm">// 208 191 — не «п»</span>
+b := []<span class="tp">byte</span>(s)
+<span class="fn">fmt.Println</span>(<span class="fn">len</span>(b))      <span class="cm">// тоже 12</span></pre>
+          </article>
+          <article class="card">
+            <h3>Руны</h3>
+            <p><code>[]rune</code> и <code>range</code> идут символами Unicode. Индекс в <code>range</code> — всё равно смещение в байтах.</p>
+            <pre class="code code--sm">s := <span class="st">"привет"</span>
+r := []<span class="tp">rune</span>(s)
+<span class="fn">fmt.Println</span>(<span class="fn">len</span>(r))         <span class="cm">// 6</span>
+<span class="fn">fmt.Println</span>(<span class="tp">string</span>(r[<span class="num">0</span>]))   <span class="cm">// п</span>
+<span class="kw">for</span> i, ch := <span class="kw">range</span> s {
+    <span class="fn">fmt.Println</span>(i, <span class="tp">string</span>(ch)) <span class="cm">// 0 п, 2 р, 4 и…</span>
+}</pre>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--warm">
+      <div class="inner">
+        <p class="eyebrow">Типы · map</p>
+        <h2>Ключ → значение</h2>
+        <p class="lead">Словарь. Ключ должен быть сравнимым: <code>int</code>, <code>string</code> — да, слайс — нет. Порядок обхода не обещан.</p>
+        <pre class="code code--sm"><span class="kw">var</span> m <span class="kw">map</span>[<span class="tp">string</span>]<span class="tp">int</span>   <span class="cm">// nil</span>
+<span class="fn">fmt.Println</span>(m[<span class="st">"x"</span>])     <span class="cm">// 0 — читать можно</span>
+<span class="cm">// m["x"] = 1           // panic: запись в nil</span>
+m = <span class="fn">make</span>(<span class="kw">map</span>[<span class="tp">string</span>]<span class="tp">int</span>)
+m[<span class="st">"x"</span>] = <span class="num">1</span>
+v, ok := m[<span class="st">"y"</span>]         <span class="cm">// 0, false — ключа нет</span></pre>
+        <div class="fact">
+          <div class="label">Интересно</div>
+          <p>Читать из <code>nil</code> map безопасно, писать — нет. Запрос с <code>ok</code> отличает «ключа нет» от «значение ноль». Порядок ключей специально случайный.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--warm">
+      <div class="inner">
+        <p class="eyebrow">Управление</p>
+        <h2>if / else и switch</h2>
+        <div class="grid-2">
+          <article class="card">
+            <h3>if / else</h3>
+            <p>Скобки вокруг условия не нужны, фигурные — обязательны. Можно объявить переменную прямо в <code>if</code>.</p>
+            <pre class="code code--sm"><span class="kw">if</span> n == <span class="num">0</span> {
+    <span class="fn">fmt.Println</span>(<span class="st">"пусто"</span>)
+} <span class="kw">else if</span> n == <span class="num">1</span> {
+    <span class="fn">fmt.Println</span>(<span class="st">"одна задача"</span>)
+} <span class="kw">else</span> {
+    <span class="fn">fmt.Println</span>(<span class="st">"несколько"</span>)
+}</pre>
+          </article>
+          <article class="card">
+            <h3>switch / case</h3>
+            <p>Ветки не проваливаются дальше — <code>break</code> не нужен. Есть <code>default</code>, можно сравнивать выражения.</p>
+            <pre class="code code--sm"><span class="kw">switch</span> status {
+<span class="kw">case</span> <span class="st">"todo"</span>:
+    <span class="fn">fmt.Println</span>(<span class="st">"в работе"</span>)
+<span class="kw">case</span> <span class="st">"done"</span>:
+    <span class="fn">fmt.Println</span>(<span class="st">"готово"</span>)
+<span class="kw">default</span>:
+    <span class="fn">fmt.Println</span>(<span class="st">"неизвестно"</span>)
+}</pre>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Управление</p>
+        <h2>Циклы: один for, четыре формы</h2>
+        <p class="lead">Отдельного <code>while</code> и <code>do-while</code> нет — всё пишется через <code>for</code>.</p>
+        <div class="grid-2 grid-2--tight">
+          <article class="card">
+            <h3>С предусловием</h3>
+            <p>Как <code>while</code>: сначала проверка, потом тело. Если условие ложно сразу — тело не выполнится.</p>
+            <pre class="code code--sm"><span class="kw">for</span> n &gt; <span class="num">0</span> {
+    n--
+}</pre>
+          </article>
+          <article class="card">
+            <h3>С постусловием</h3>
+            <p>Тела нет <code>do-while</code>: тело хотя бы раз, проверка в конце, выход через <code>break</code>.</p>
+            <pre class="code code--sm"><span class="kw">for</span> {
+    n--
+    <span class="kw">if</span> n &lt;= <span class="num">0</span> {
+        <span class="kw">break</span>
+    }
+}</pre>
+          </article>
+          <article class="card">
+            <h3>Итерационный</h3>
+            <p>Инициализация, условие, шаг — классический счётчик.</p>
+            <pre class="code code--sm"><span class="kw">for</span> i := <span class="num">0</span>; i &lt; <span class="num">3</span>; i++ {
+    <span class="fn">fmt.Println</span>(i)
+}</pre>
+          </article>
+          <article class="card">
+            <h3>while true</h3>
+            <p>Бесконечный цикл. Выход только изнутри: <code>break</code>, <code>return</code>.</p>
+            <pre class="code code--sm"><span class="kw">for</span> {
+    <span class="cm">// пока не break</span>
+}</pre>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Функции</p>
+        <h2>Входные, выходные, ошибка</h2>
+        <div class="sig">
+          <div class="sig-part">
+            <span class="sig-label">имя</span>
+            <span class="sig-code">addTask</span>
+          </div>
+          <div class="sig-part sig-part--in">
+            <span class="sig-label">входные — первые скобки</span>
+            <span class="sig-code">(title string)</span>
+          </div>
+          <div class="sig-part sig-part--out">
+            <span class="sig-label">выходные — вторые скобки</span>
+            <span class="sig-code">(Task, error)</span>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top:1rem">
+          <article class="card">
+            <h3>Их может быть несколько</h3>
+            <p>И на входе, и на выходе — список, не один слот. Здесь на выходе два значения: задача и статус.</p>
+          </article>
+          <article class="card">
+            <h3>error — обычно последним</h3>
+            <p>Договорённость Go: полезная величина, затем ошибка. <code>nil</code> — ок. Это значение, не исключение.</p>
+          </article>
+        </div>
+        <pre class="code code--sm"><span class="kw">func</span> <span class="fn">addTask</span>(title <span class="tp">string</span>) (<span class="tp">Task</span>, <span class="tp">error</span>) {
+    <span class="kw">if</span> title == <span class="st">""</span> {
+        <span class="kw">return</span> Task{}, <span class="fn">errors.New</span>(<span class="st">"пустой заголовок"</span>)
+    }
+    <span class="kw">return</span> Task{Title: title}, <span class="kw">nil</span>
+}</pre>
+      </div>
+    </section>
+
+    <section class="slide slide--teal">
+      <div class="inner">
+        <p class="eyebrow">В стороне</p>
+        <h2>Консольный менеджер задач</h2>
+        <p class="lead">Это учебный домен курса: создание, список, смена статуса. Сегодня его не собираем — для модели нужны struct и методы.</p>
+        <div class="practice">
+          <div class="label">Занятие 02</div>
+          <p>Struct и методы — и в папки из домашки положим задачи. Сегодня только каркас навигации.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--paper">
+      <div class="inner">
+        <p class="eyebrow">Домашка</p>
+        <h2>Папки в терминале</h2>
+        <p class="lead">Переходы по меню. Папки — место, куда на занятии 02 лягут задачи.</p>
+        <div class="grid-2 grid-2--tight">
+          <article class="card">
+            <h3>Что должно быть</h3>
+            <ul class="dots" style="margin-top:0.65rem">
+              <li>Главное меню: список папок и выход. <code>for { }</code> + <code>switch</code>.</li>
+              <li>Внутри папки: «задач пока нет», <strong>создать</strong>, <strong>удалить</strong>, <strong>переименовать</strong> папку, назад.</li>
+              <li>Функции с <code>error</code>: пустое имя, папки нет — ошибка, не паника.</li>
+              <li>Без <code>struct</code> и списка задач. Имена папок — строки (можно слайс строк).</li>
+            </ul>
+          </article>
+          <pre class="code code--sm">=== папки ===
+1. Входящие
+2. Работа
+3. Личное
+0. Выход
+> 2
+
+[Работа]
+задач пока нет — занятие 02
+1. Создать папку
+2. Удалить папку
+3. Переименовать папку
+4. Назад
+0. Выход
+></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--ink">
+      <div class="inner">
+        <p class="eyebrow">Итог</p>
+        <h2>Уносим с занятия</h2>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Сегодня</h3>
+            <p>Go, toolchain, типы, переменные, условия, циклы и функции. Дома — навигация по папкам в терминале.</p>
+          </article>
+          <article class="card">
+            <h3>Занятие 02</h3>
+            <p>ООП: struct, методы, инкапсуляция, композиция, интерфейсы. И уже модель Task для менеджера.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const slides = [...document.querySelectorAll(".slide")];
+    const bar = document.getElementById("bar");
+    const counter = document.getElementById("counter");
+    const total = slides.length;
+    let i = 0;
+
+    function pad(n) { return String(n).padStart(2, "0"); }
+
+    function go(n) {
+      i = Math.max(0, Math.min(total - 1, n));
+      slides.forEach((s, k) => s.classList.toggle("is-on", k === i));
+      bar.style.width = ((i + 1) / total * 100) + "%";
+      counter.textContent = pad(i + 1) + " / " + pad(total);
+      history.replaceState(null, "", "#" + (i + 1));
+    }
+
+    function fromHash() {
+      const n = parseInt(location.hash.replace("#", ""), 10);
+      if (Number.isFinite(n)) go(n - 1);
+      else go(0);
+    }
+
+    document.querySelector(".nav-hit--prev").addEventListener("click", () => go(i - 1));
+    document.querySelector(".nav-hit--next").addEventListener("click", () => go(i + 1));
+
+    document.addEventListener("keydown", (e) => {
+      if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) {
+        e.preventDefault();
+        go(i + 1);
+      } else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) {
+        e.preventDefault();
+        go(i - 1);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        go(0);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        go(total - 1);
+      } else if (e.key === "f" || e.key === "F") {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+      }
+    });
+
+    let touchX = null;
+    document.addEventListener("touchstart", (e) => { touchX = e.changedTouches[0].screenX; }, { passive: true });
+    document.addEventListener("touchend", (e) => {
+      if (touchX == null) return;
+      const dx = e.changedTouches[0].screenX - touchX;
+      if (Math.abs(dx) > 50) go(dx < 0 ? i + 1 : i - 1);
+      touchX = null;
+    }, { passive: true });
+
+    window.addEventListener("hashchange", fromHash);
+    fromHash();
+  </script>
+</body>
+</html>
